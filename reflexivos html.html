@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominio de Pronombres: App de Práctica Pro</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --correct: #22c55e;
+            --wrong: #ef4444;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --gold: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 15px; overflow-x: hidden;
+        }
+
+        /* Contenedor Principal */
+        .app-shell {
+            width: 100%; max-width: 900px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            overflow: hidden; position: relative;
+        }
+
+        /* Barra de Progreso y Stats */
+        .top-bar { padding: 20px; background: rgba(0,0,0,0.2); border-bottom: 1px solid #334155; }
+        .stats-grid { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .stat-item { font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+        .progress-container { height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease; }
+
+        /* Área de Contenido */
+        .content { padding: 30px; min-height: 450px; display: flex; flex-direction: column; }
+        .meta-info { display: flex; gap: 10px; margin-bottom: 15px; }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-type { background: #475569; }
+        .badge-diff { background: var(--accent); }
+        
+        .timer-container { height: 4px; width: 100%; background: #334155; margin-bottom: 20px; display: none; }
+        .timer-fill { height: 100%; background: var(--gold); width: 100%; }
+
+        .instruction { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px; }
+        .question { font-size: 1.4rem; font-weight: 600; line-height: 1.4; margin-bottom: 25px; }
+
+        /* Estilos de inputs y botones */
+        .options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .btn-opt { 
+            background: #2d3748; border: 2px solid #3d4a61; color: white; 
+            padding: 16px; border-radius: 14px; cursor: pointer; transition: all 0.2s;
+            font-size: 1rem; text-align: left; position: relative;
+        }
+        .btn-opt:hover { border-color: var(--accent); background: #334155; }
+        .btn-opt.selected { border-color: var(--accent); background: rgba(59, 130, 246, 0.2); }
+        .btn-opt.correct { border-color: var(--correct); background: rgba(34, 197, 94, 0.2); }
+        .btn-opt.wrong { border-color: var(--wrong); background: rgba(239, 68, 68, 0.2); }
+
+        .input-text { 
+            width: 100%; padding: 18px; background: #0f172a; border: 2px solid #334155;
+            border-radius: 12px; color: white; font-size: 1.2rem; outline: none; transition: 0.3s;
+        }
+        .input-text:focus { border-color: var(--accent); }
+
+        /* Ordenar palabras */
+        .word-bank { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; min-height: 50px; padding: 10px; border: 1px dashed #475569; border-radius: 12px; }
+        .word-drop { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; min-height: 60px; padding: 10px; background: #0f172a; border-radius: 12px; border: 2px solid #334155; }
+        .draggable-word { background: #475569; padding: 8px 15px; border-radius: 8px; cursor: pointer; user-select: none; transition: 0.2s; }
+        .draggable-word:hover { background: var(--accent); }
+
+        /* Feedback y Navegación */
+        .feedback { display: none; margin-top: 20px; padding: 20px; border-radius: 15px; animation: slideUp 0.3s ease; }
+        .feedback.show { display: block; }
+        .expl { font-size: 0.95rem; margin-top: 8px; line-height: 1.5; color: var(--text-muted); }
+
+        .footer-actions { margin-top: auto; padding-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .main-btn { 
+            padding: 14px 25px; border-radius: 12px; border: none; font-weight: 700; 
+            cursor: pointer; transition: 0.3s; font-size: 1rem; display: flex; align-items: center; gap: 8px;
+        }
+        .btn-primary { background: var(--accent); color: white; flex: 2; min-width: 150px; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        .btn-secondary { background: #334155; color: white; flex: 1; }
+        .btn-hint { background: transparent; border: 2px solid #475569; color: var(--text-muted); }
+
+        /* Pantalla Final */
+        .results-screen { display: none; padding: 40px; text-align: center; }
+        .score-circle { width: 150px; height: 150px; border-radius: 50%; border: 8px solid var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 30px; }
+        .score-val { font-size: 3rem; font-weight: 800; }
+        .review-list { text-align: left; margin-top: 40px; max-height: 400px; overflow-y: auto; padding-right: 10px; }
+        .review-item { background: #0f172a; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--wrong); }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .shake { animation: shake 0.2s ease 2; }
+
+        @media (max-width: 600px) {
+            .options-grid { grid-template-columns: 1fr; }
+            .content { padding: 20px; }
+            .question { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <!-- Pantalla Inicial -->
+    <div id="start-screen" style="padding: 50px; text-align: center;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 20px;">Dominio de Pronombres</h1>
+        <p style="color: var(--text-muted); margin-bottom: 40px; font-size: 1.2rem;">Mejora tu fluidez con objetos directos, indirectos y reflexivos.</p>
+        <button class="main-btn btn-primary" onclick="initApp()" style="margin: 0 auto; max-width: 300px;">Comenzar Práctica</button>
+    </div>
+
+    <!-- Pantalla de Preguntas -->
+    <div id="quiz-screen" style="display: none;">
+        <div class="top-bar">
+            <div class="stats-grid">
+                <div class="stat-item">Pregunta: <span id="q-counter">1/40</span></div>
+                <div class="stat-item" style="color: var(--correct);">✅ <span id="s-correct">0</span></div>
+                <div class="stat-item" style="color: var(--wrong);">❌ <span id="s-wrong">0</span></div>
+                <div class="stat-item" style="color: var(--gold);">🔥 Racha: <span id="s-streak">0</span></div>
+                <div class="stat-item">Puntos: <span id="s-points">0</span></div>
+            </div>
+            <div class="progress-container"><div class="progress-fill" id="progress-bar"></div></div>
+        </div>
+
+        <div id="timer-bar" class="timer-container"><div id="timer-fill" class="timer-fill"></div></div>
+
+        <div class="content">
+            <div class="meta-info">
+                <span id="badge-type" class="badge badge-type">TIPO</span>
+                <span id="badge-diff" class="badge badge-diff">FÁCIL</span>
+            </div>
+            <p class="instruction" id="q-instruction">Instrucción aquí</p>
+            <h2 class="question" id="q-text">Pregunta de prueba aquí...</h2>
+
+            <div id="interaction-area">
+                <!-- Aquí se inyectan los inputs o botones dinámicamente -->
+            </div>
+
+            <div id="hint-text" style="display: none; margin-top: 15px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--gold); font-size: 0.9rem;"></div>
+
+            <div id="feedback" class="feedback">
+                <h3 id="f-status">¡Correcto!</h3>
+                <p id="f-expl" class="expl">Explicación breve aquí.</p>
+            </div>
+
+            <div class="footer-actions">
+                <button class="main-btn btn-hint" id="btn-hint" onclick="showHint()">Pista</button>
+                <button class="main-btn btn-secondary" id="btn-skip" onclick="skipQuestion()">Saltar</button>
+                <button class="main-btn btn-primary" id="btn-main" onclick="handleSubmit()">Enviar Respuesta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Resultados -->
+    <div id="results-screen" class="results-screen">
+        <h1 style="margin-bottom: 20px;">¡Práctica Terminada!</h1>
+        <div class="score-circle">
+            <span class="score-val" id="res-percent">85%</span>
+            <span style="font-size: 0.9rem;">Calificación</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            <div class="stat-item">Aciertos: <span id="res-correct" style="color: var(--correct)">0</span></div>
+            <div class="stat-item">Errores: <span id="res-wrong" style="color: var(--wrong)">0</span></div>
+        </div>
+
+        <div id="topic-analysis" style="text-align: left; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; margin-bottom: 30px;">
+            <h3 style="margin-bottom: 10px;">Análisis por tema:</h3>
+            <div id="topic-list"></div>
+        </div>
+
+        <div class="review-list" id="review-list"></div>
+
+        <div class="footer-actions" style="margin-top: 30px;">
+            <button class="main-btn btn-secondary" onclick="location.reload()">Reiniciar Todo</button>
+            <button class="main-btn btn-primary" id="btn-retry-errors" onclick="retryErrors()" style="display: none;">Practicar Errores</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const quizData = [
+        // 1. Opción Múltiple
+        { type: "multiple-choice", difficulty: "fácil", topic: "objeto directo", instruction: "Elige el pronombre de objeto directo correcto:", question: "¿Dónde pusiste las llaves de la casa?", options: ["Lo", "La", "Los", "Las"], correctAnswer: "Las", hint: "Femenino plural.", explanation: "'Las llaves' es femenino plural, por eso usamos 'las'." },
+        { type: "multiple-choice", difficulty: "medio", topic: "posicion", instruction: "Elige la opción correcta:", question: "No quiero comer la sopa ahora. → No ____ quiero comer ahora.", options: ["la", "le", "lo", "se"], correctAnswer: "la", hint: "Objeto directo para 'la sopa'.", explanation: "El pronombre 'la' sustituye a 'la sopa' y va antes del verbo conjugado." },
+        
+        // 2. Input
+        { type: "input", difficulty: "fácil", topic: "reflexivo", instruction: "Escribe el pronombre reflexivo correcto:", question: "Yo siempre ____ cepillo los dientes después de comer.", correctAnswer: "me", hint: "Pronombre para 'yo'.", explanation: "Los verbos reflexivos con 'yo' siempre usan 'me'." },
+        { type: "input", difficulty: "medio", topic: "objeto indirecto", instruction: "Escribe el pronombre de objeto indirecto:", question: "A mis padres ____ mandé una postal desde Cancún.", correctAnswer: "les", hint: "Pronombre para 'ellos'.", explanation: "Usamos 'les' para referirnos a 'mis padres' (objeto indirecto plural)." },
+
+        // 3. Clasificación
+        { type: "classification", difficulty: "fácil", topic: "reflexivo", instruction: "Clasifica el pronombre en mayúsculas:", question: "Ella SE baña por las mañanas.", options: ["Objeto Directo", "Objeto Indirecto", "Reflexivo"], correctAnswer: "Reflexivo", hint: "La acción recae sobre el sujeto.", explanation: "Es reflexivo porque ella realiza y recibe la acción de bañar." },
+        { type: "classification", difficulty: "medio", topic: "objeto indirecto", instruction: "Clasifica el pronombre en mayúsculas:", question: "Juan LE dio un regalo a su novia.", options: ["Objeto Directo", "Objeto Indirecto", "Reflexivo"], correctAnswer: "Objeto Indirecto", hint: "¿A quién le dio el regalo?", explanation: "'Le' indica el destinatario de la acción (la novia)." },
+
+        // 4. Corrección de errores
+        { type: "error-correction", difficulty: "difícil", topic: "doble pronombre", instruction: "Elige la versión correcta de esta frase: 'Le lo dije ayer a mi jefe.'", question: "¿Cuál es la forma correcta?", options: ["Se lo dije ayer.", "Lo le dije ayer.", "Se la dije ayer."], correctAnswer: "Se lo dije ayer.", hint: "Recuerda el cambio de le/les ante lo/la.", explanation: "Cuando 'le' y 'lo' están juntos, el indirecto cambia a 'se'." },
+
+        // 5. Mini Diálogos
+        { type: "dialogue", difficulty: "medio", topic: "posicion", instruction: "Completa el diálogo de forma natural:", question: "— ¿Necesitas el libro de gramática?\n— Sí, por favor, _____.", options: ["dámelo", "melo da", "me lo da"], correctAnswer: "dámelo", hint: "Imperativo afirmativo.", explanation: "En el imperativo afirmativo, los pronombres van pegados al final del verbo." },
+
+        // 6. Verdadero o Falso
+        { type: "true-false", difficulty: "fácil", topic: "posicion", instruction: "¿Es correcta la explicación?", question: "En la frase 'Estoy viéndolo', el pronombre 'lo' está pegado al gerundio.", options: ["Verdadero", "Falso"], correctAnswer: "Verdadero", hint: "Mira el final del verbo.", explanation: "Es correcto, los pronombres pueden ir después de un gerundio." },
+
+        // 7. Ordenar Palabras
+        { type: "word-order", difficulty: "difícil", topic: "posicion", instruction: "Ordena las palabras para formar una oración lógica:", question: "no / me / lo / digas", correctAnswer: "no me lo digas", hint: "Es un imperativo negativo.", explanation: "En imperativo negativo, el orden es: No + OI + OD + Verbo." },
+
+        // 8. Transformación
+        { type: "transformation", difficulty: "difícil", topic: "doble pronombre", instruction: "Sustituye por pronombres: 'Traigo las flores para ti.'", question: "Yo ____ traigo.", correctAnswer: "te las", hint: "OI (para ti) + OD (las flores).", explanation: "Te (OI) + las (OD)." },
+
+        // Añadimos más para llegar a 40 con diversidad
+        { type: "multiple-choice", difficulty: "fácil", topic: "objeto directo", question: "¿Compraste el pan? Sí, ___ compré.", options: ["lo", "la", "le", "se"], correctAnswer: "lo", hint: "Masculino singular.", explanation: "Pan es masculino singular." },
+        { type: "input", difficulty: "medio", topic: "reflexivo", question: "Nosotros ___ despertamos a las 6 AM.", correctAnswer: "nos", hint: "Para nosotros.", explanation: "Reflexivo 'nos'." },
+        { type: "multiple-choice", difficulty: "difícil", topic: "doble pronombre", question: "Voy a explicar la lección a los niños. → Voy a ___.", options: ["explicársela", "explicárlesla", "explicárselo"], correctAnswer: "explicársela", hint: "Se (niños) + la (lección).", explanation: "Combinación de pronombres al final del infinitivo." },
+        { type: "multiple-choice", difficulty: "fácil", topic: "objeto directo", question: "¿Conoces a María? Sí, ___ conozco.", options: ["la", "lo", "le", "se"], correctAnswer: "la", hint: "Mujer singular.", explanation: "Objeto directo para persona femenina." },
+        { type: "input", difficulty: "medio", topic: "posicion", question: "¡No ___ (me/lo) quites!", correctAnswer: "me lo", hint: "Doble pronombre separado.", explanation: "Antes del verbo en imperativo negativo." },
+        { type: "classification", difficulty: "fácil", question: "Él ME llamó por teléfono.", options: ["Objeto Directo", "Objeto Indirecto", "Reflexivo"], correctAnswer: "Objeto Directo", hint: "¿A quién llamó?", explanation: "Llamar a alguien es objeto directo." },
+        { type: "error-correction", difficulty: "medio", question: "Oración: 'Yo se lavo las manos.'", options: ["Yo me lavo las manos.", "Yo lo lavo las manos.", "Yo le lavo las manos."], correctAnswer: "Yo me lavo las manos.", hint: "Reflexivo para 'yo'.", explanation: "El sujeto es Yo." },
+        { type: "transformation", difficulty: "difícil", question: "Escribo una carta a mi abuelo. → ___ escribo.", correctAnswer: "se la", hint: "Le + la.", explanation: "Cambio de le a se." },
+        { type: "dialogue", difficulty: "medio", question: "— ¿Te gusta este vestido?\n— Sí, ___ voy a comprar.", options: ["me lo", "se lo", "te lo"], correctAnswer: "me lo", hint: "A mí mismo.", explanation: "Reflexivo/objeto indirecto de beneficio." },
+        { type: "true-false", difficulty: "difícil", question: "En 'Dímelo', 'me' es el objeto directo.", options: ["Verdadero", "Falso"], correctAnswer: "Falso", hint: "¿Qué es 'lo'?", explanation: "'Lo' es el objeto directo (la cosa) y 'me' el indirecto (la persona)." },
+        { type: "multiple-choice", difficulty: "fácil", topic: "objeto indirecto", question: "¿Le hablaste a Juan? No, no ___ hablé.", options: ["le", "lo", "la", "se"], correctAnswer: "le", hint: "A él.", explanation: "Hablar es un verbo que suele usar OI." },
+        { type: "word-order", difficulty: "medio", topic: "reflexivo", question: "mañana / se / ella / maquilla / cada", correctAnswer: "ella se maquilla cada mañana", hint: "Sujeto + Pronombre + Verbo.", explanation: "Estructura básica reflexiva." },
+        { type: "input", difficulty: "fácil", topic: "objeto directo", question: "¿Buscas los lentes? Sí, ___ busco.", correctAnswer: "los", hint: "Plural masculino.", explanation: "Los lentes." },
+        { type: "multiple-choice", difficulty: "medio", topic: "posicion", question: "Quiero verte. Es igual a: ___ quiero ver.", options: ["Te", "Lo", "Le", "Se"], correctAnswer: "Te", hint: "A ti.", explanation: "Posición antes del verbo conjugado." },
+        { type: "input", difficulty: "difícil", topic: "doble pronombre", question: "Doy las llaves a ti. → ___ doy.", correctAnswer: "te las", hint: "A ti + las llaves.", explanation: "Doble pronombre." },
+        { type: "true-false", difficulty: "medio", question: "En la frase 'Me como una manzana', el pronombre 'me' es obligatorio.", options: ["Verdadero", "Falso"], correctAnswer: "Falso", hint: "Comer vs Comerse.", explanation: "Es un 'me' enfático, se puede decir 'Como una manzana'." },
+        { type: "multiple-choice", difficulty: "fácil", topic: "objeto indirecto", question: "Mis amigos ___ trajeron un regalo a mí.", options: ["me", "te", "le", "nos"], correctAnswer: "me", hint: "A mí.", explanation: "Objeto indirecto de primera persona." },
+        { type: "classification", difficulty: "medio", question: "NOS vemos mañana.", options: ["Objeto Directo", "Objeto Indirecto", "Reflexivo/Recíproco"], correctAnswer: "Reflexivo/Recíproco", hint: "Acción mutua.", explanation: "Es un uso recíproco." },
+        { type: "error-correction", difficulty: "difícil", question: "Oración: 'Dámelos las.'", options: ["Dámelas.", "Dámelos.", "Me las da."], correctAnswer: "Dámelas.", hint: "Femenino plural.", explanation: "Las flores / Las llaves." },
+        { type: "transformation", difficulty: "medio", question: "Lavo el carro para mi papá. → ___ lavo.", correctAnswer: "se lo", hint: "Le + lo.", explanation: "Se lo." },
+        { type: "input", difficulty: "difícil", topic: "posicion", question: "Estamos (preparar/nos) para el viaje.", correctAnswer: "preparándonos", hint: "Gerundio + reflexivo.", explanation: "Añadimos acento al gerundio." },
+        { type: "multiple-choice", difficulty: "fácil", question: "¿Viste la película? No, no ___ vi.", options: ["la", "lo", "le", "se"], correctAnswer: "la", hint: "La película.", explanation: "OD femenino singular." },
+        { type: "word-order", difficulty: "difícil", question: "se / lo / quiere / él / comprar", correctAnswer: "él se lo quiere comprar", hint: "Sujeto + OI + OD + Verbo.", explanation: "Orden de doble pronombre." },
+        { type: "input", difficulty: "medio", topic: "objeto indirecto", question: "A ti ___ gusta el chocolate.", correctAnswer: "te", hint: "Verbo gustar.", explanation: "Siempre usa OI." },
+        { type: "classification", difficulty: "fácil", question: "Él LO reparó.", options: ["Objeto Directo", "Objeto Indirecto", "Reflexivo"], correctAnswer: "Objeto Directo", hint: "¿Qué reparó?", explanation: "Representa el objeto." },
+        { type: "multiple-choice", difficulty: "difícil", question: "Si le prestas dinero a ella... → Si ___ prestas.", options: ["se lo", "le lo", "se le"], correctAnswer: "se lo", hint: "Dinero (lo).", explanation: "Se lo prestas." },
+        { type: "dialogue", difficulty: "fácil", question: "— ¿Te lavaste las manos?\n— Sí, ya ___ lavé.", options: ["me las", "se las", "te las"], correctAnswer: "me las", hint: "Yo a mí.", explanation: "Reflexivo + OD." },
+        { type: "true-false", difficulty: "fácil", question: "Los pronombres 'lo, la, los, las' son siempre de Objeto Indirecto.", options: ["Verdadero", "Falso"], correctAnswer: "Falso", hint: "Son los 'directos'.", explanation: "Son de objeto directo." },
+        { type: "input", difficulty: "difícil", topic: "imperativo", question: "¡No (decir/le) la verdad todavía!", correctAnswer: "le digas", hint: "Imperativo negativo.", explanation: "Pronombre antes del verbo." }
+    ];
+
+    let state = {
+        shuffledQuestions: [],
+        currentIndex: 0,
+        score: 0,
+        wrong: 0,
+        streak: 0,
+        maxStreak: 0,
+        points: 0,
+        errors: [],
+        topicsCount: {},
+        isAnswered: false,
+        timer: null,
+        timeLeft: 15,
+        isErrorMode: false
+    };
+
+    function initApp() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        
+        state.shuffledQuestions = shuffle([...quizData]).slice(0, 40);
+        state.currentIndex = 0;
+        state.score = 0;
+        state.wrong = 0;
+        state.streak = 0;
+        state.points = 0;
+        state.errors = [];
+        state.topicsCount = {};
+        
+        loadQuestion();
+    }
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function loadQuestion() {
+        state.isAnswered = false;
+        clearInterval(state.timer);
+        
+        const q = state.shuffledQuestions[state.currentIndex];
+        
+        // UI Updates
+        document.getElementById('q-counter').innerText = `${state.currentIndex + 1}/${state.shuffledQuestions.length}`;
+        document.getElementById('progress-bar').style.width = `${(state.currentIndex / state.shuffledQuestions.length) * 100}%`;
+        document.getElementById('badge-type').innerText = q.type.replace('-', ' ');
+        document.getElementById('badge-diff').innerText = q.difficulty;
+        document.getElementById('q-instruction').innerText = q.instruction;
+        document.getElementById('q-text').innerText = q.question;
+        document.getElementById('feedback').classList.remove('show');
+        document.getElementById('hint-text').style.display = 'none';
+        document.getElementById('btn-main').innerText = "Enviar Respuesta";
+        document.getElementById('btn-main').disabled = false;
+        document.getElementById('timer-bar').style.display = (q.difficulty === 'difícil' || Math.random() > 0.7) ? 'block' : 'none';
+
+        renderInteraction(q);
+        
+        if (document.getElementById('timer-bar').style.display === 'block') {
+            startTimer();
+        }
+    }
+
+    function renderInteraction(q) {
+        const area = document.getElementById('interaction-area');
+        area.innerHTML = '';
+
+        if (q.type === 'multiple-choice' || q.type === 'classification' || q.type === 'error-correction' || q.type === 'dialogue' || q.type === 'true-false') {
+            const grid = document.createElement('div');
+            grid.className = 'options-grid';
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-opt';
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    if (state.isAnswered) return;
+                    document.querySelectorAll('.btn-opt').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                grid.appendChild(btn);
+            });
+            area.appendChild(grid);
+        } else if (q.type === 'input' || q.type === 'transformation') {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input-text';
+            input.placeholder = 'Escribe tu respuesta aquí...';
+            input.id = 'user-input';
+            area.appendChild(input);
+            input.focus();
+        } else if (q.type === 'word-order') {
+            const bank = document.createElement('div');
+            bank.className = 'word-bank';
+            bank.id = 'word-bank';
+            
+            const drop = document.createElement('div');
+            drop.className = 'word-drop';
+            drop.id = 'word-drop';
+            
+            const words = shuffle(q.question.split(' / '));
+            words.forEach(w => {
+                const span = document.createElement('span');
+                span.className = 'draggable-word';
+                span.innerText = w;
+                span.onclick = () => moveWord(span);
+                bank.appendChild(span);
+            });
+            area.appendChild(drop);
+            area.appendChild(bank);
+        }
+    }
+
+    function moveWord(el) {
+        if (state.isAnswered) return;
+        const bank = document.getElementById('word-bank');
+        const drop = document.getElementById('word-drop');
+        if (el.parentElement === bank) drop.appendChild(el);
+        else bank.appendChild(el);
+    }
+
+    function startTimer() {
+        state.timeLeft = 15;
+        const fill = document.getElementById('timer-fill');
+        state.timer = setInterval(() => {
+            state.timeLeft -= 0.1;
+            fill.style.width = `${(state.timeLeft / 15) * 100}%`;
+            if (state.timeLeft <= 0) {
+                clearInterval(state.timer);
+                handleSubmit();
+            }
+        }, 100);
+    }
+
+    function showHint() {
+        const h = document.getElementById('hint-text');
+        h.innerText = "💡 " + state.shuffledQuestions[state.currentIndex].hint;
+        h.style.display = 'block';
+        state.points = Math.max(0, state.points - 5);
+        updateStats();
+    }
+
+    function skipQuestion() {
+        state.currentIndex++;
+        if (state.currentIndex >= state.shuffledQuestions.length) showFinalResults();
+        else loadQuestion();
+    }
+
+    function handleSubmit() {
+        if (state.isAnswered) {
+            state.currentIndex++;
+            if (state.currentIndex >= state.shuffledQuestions.length) showFinalResults();
+            else loadQuestion();
+            return;
+        }
+
+        clearInterval(state.timer);
+        const q = state.shuffledQuestions[state.currentIndex];
+        let userAnswer = "";
+        let isCorrect = false;
+
+        if (q.type === 'word-order') {
+            userAnswer = Array.from(document.getElementById('word-drop').children).map(c => c.innerText).join(' ').toLowerCase();
+        } else if (document.getElementById('user-input')) {
+            userAnswer = document.getElementById('user-input').value.trim().toLowerCase();
+        } else {
+            const selected = document.querySelector('.btn-opt.selected');
+            userAnswer = selected ? selected.innerText : "";
+        }
+
+        // Logic Check
+        const cleanCorrect = q.correctAnswer.toLowerCase();
+        isCorrect = (userAnswer === cleanCorrect);
+
+        // UI Feedback
+        state.isAnswered = true;
+        const fb = document.getElementById('feedback');
+        fb.classList.add('show');
+        fb.className = 'feedback show ' + (isCorrect ? 'correct' : 'wrong');
+        document.getElementById('f-status').innerText = isCorrect ? "¡Excelente! ✨" : "Oops... Incorrecto ❌";
+        document.getElementById('f-status').style.color = isCorrect ? 'var(--correct)' : 'var(--wrong)';
+        document.getElementById('f-expl').innerText = q.explanation + " Respuesta correcta: " + q.correctAnswer;
+
+        if (isCorrect) {
+            state.score++;
+            state.streak++;
+            state.points += (q.difficulty === 'difícil' ? 30 : q.difficulty === 'medio' ? 20 : 10) + (state.streak * 2);
+            if(state.streak > state.maxStreak) state.maxStreak = state.streak;
+        } else {
+            state.wrong++;
+            state.streak = 0;
+            state.errors.push({...q, userTyped: userAnswer});
+            document.querySelector('.app-shell').classList.add('shake');
+            setTimeout(() => document.querySelector('.app-shell').classList.remove('shake'), 300);
+        }
+
+        // Topic Analysis
+        const t = q.topic || "otros";
+        if(!state.topicsCount[t]) state.topicsCount[t] = {c:0, w:0};
+        if(isCorrect) state.topicsCount[t].c++; else state.topicsCount[t].w++;
+
+        updateStats();
+        document.getElementById('btn-main').innerText = "Continuar";
+        
+        // Highlight options
+        document.querySelectorAll('.btn-opt').forEach(b => {
+            if(b.innerText.toLowerCase() === cleanCorrect) b.classList.add('correct');
+            else if(b.classList.contains('selected')) b.classList.add('wrong');
+        });
+    }
+
+    function updateStats() {
+        document.getElementById('s-correct').innerText = state.score;
+        document.getElementById('s-wrong').innerText = state.wrong;
+        document.getElementById('s-streak').innerText = state.streak;
+        document.getElementById('s-points').innerText = state.points;
+    }
+
+    function showFinalResults() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('results-screen').style.display = 'block';
+
+        const perc = Math.round((state.score / state.shuffledQuestions.length) * 100);
+        document.getElementById('res-percent').innerText = perc + "%";
+        document.getElementById('res-correct').innerText = state.score;
+        document.getElementById('res-wrong').innerText = state.wrong;
+
+        // Topics Analysis UI
+        const tList = document.getElementById('topic-list');
+        tList.innerHTML = '';
+        for (let t in state.topicsCount) {
+            const data = state.topicsCount[t];
+            const p = Math.round((data.c / (data.c + data.w)) * 100);
+            tList.innerHTML += `<div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                    <span style="text-transform:capitalize;">${t}</span>
+                    <span>${p}% acierto</span>
+                </div>
+                <div style="height:4px; background:#334155; border-radius:2px; margin-top:4px;">
+                    <div style="height:100%; background:var(--accent); width:${p}%"></div>
+                </div>
+            </div>`;
+        }
+
+        // Review List
+        const rList = document.getElementById('review-list');
+        rList.innerHTML = '<h3 style="margin-bottom:15px;">Revisión de errores:</h3>';
+        state.errors.forEach(err => {
+            rList.innerHTML += `<div class="review-item">
+                <strong>Pregunta:</strong> ${err.question}<br>
+                <span style="color:var(--wrong)">Tu respuesta: ${err.userTyped || '(vacío)'}</span><br>
+                <span style="color:var(--correct)">Correcta: ${err.correctAnswer}</span><br>
+                <small>${err.explanation}</small>
+            </div>`;
+        });
+
+        if(state.errors.length > 0) document.getElementById('btn-retry-errors').style.display = 'block';
+    }
+
+    function retryErrors() {
+        state.shuffledQuestions = shuffle([...state.errors]);
+        state.errors = [];
+        state.currentIndex = 0;
+        state.score = 0;
+        state.wrong = 0;
+        state.streak = 0;
+        document.getElementById('results-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        loadQuestion();
+    }
+</script>
+
+</body>
+</html>
